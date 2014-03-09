@@ -1,6 +1,7 @@
 package com.ethanbustad.converter;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,12 +22,16 @@ public class ConversionTable {
 		System.out.println("50min to s: " + ct.convert(50, "mins", "secs"));
 		System.out.println("34in to cm: " + ct.convert(34, "inches", "cms"));
 
+		System.out.println("6 in to ft: " + ct.convert(6, "in", "ft"));
+		System.out.println("0.5 ft to in: " + ct.convert(0.5, "ft", "in"));
+
 		System.out.println("5m to cm: " + ct.convert(5, "m", "cm"));
 		System.out.println("5km to m: " + ct.convert(5, "km", "m"));
 		System.out.println("5 m to km: " + ct.convert(5, "m", "km"));
 	}
 
 	public ConversionTable() {
+		_addedUnits = new ArrayList<String>();
 		_table = new HashMap<String, Number>();
 		_units = new HashMap<String, String>();
 		_unitPrefixes = new HashMap<String, String>();
@@ -36,12 +41,15 @@ public class ConversionTable {
 	}
 
 	public void addRate(String from, String to, Number rate) throws Exception {
-		from = _standardizeUnits(from);
-		to = _standardizeUnits(to);
+		//from = _standardizeUnits(from);
+		//to = _standardizeUnits(to);
 
 		String key = _getKey(from, to);
 
 		_table.put(key, rate);
+
+		_addedUnits.add(from);
+		_addedUnits.add(to);
 	}
 
 	public Value<Double> convert(Value<? extends Number> from, String to)
@@ -79,6 +87,12 @@ public class ConversionTable {
 		throw new Exception("Rate for this conversion not available.");
 	}
 
+	public boolean hasRate(String from, String to) {
+		String key = _getKey(from, to);
+
+		return _table.containsKey(key);
+	}
+
 	private String _checkStandardFormat(String unit) {
 		String prefix = null;
 
@@ -111,7 +125,7 @@ public class ConversionTable {
 		BigDecimal bdValue = new BigDecimal(value.toString());
 		BigDecimal bdRate = new BigDecimal(rate.toString());
 
-		return bdValue.multiply(bdRate);
+		return bdValue.multiply(bdRate, MathContext.DECIMAL64);
 	}
 
 	private BigDecimal _deriveConversionRate(String from, String to)
@@ -177,7 +191,7 @@ public class ConversionTable {
 
 	private BigDecimal _inverse(Number num) {
 		return BigDecimal.ONE.divide(
-			new BigDecimal(num.toString()), 10, BigDecimal.ROUND_HALF_DOWN);
+			new BigDecimal(num.toString()), 20, BigDecimal.ROUND_HALF_DOWN);
 	}
 
 	private void _setDefaults() {
@@ -224,9 +238,18 @@ public class ConversionTable {
 			return _standardizeUnits(singularUnit);
 		}
 
+		if (_addedUnits.contains(unit)) {
+			return unit;
+		}
+
+		if (_addedUnits.contains(lcUnit)) {
+			return lcUnit;
+		}
+
 		throw new Exception("The units " + unit + " are nonstandard.");
 	}
 
+	private List<String> _addedUnits;
 	private Map<String, Number> _table;
 	private Map<String, String> _units;
 	private Map<String, String> _unitPrefixes;

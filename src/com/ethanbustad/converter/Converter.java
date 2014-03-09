@@ -15,10 +15,12 @@ public class Converter {
 
 		String input = sb.toString();
 
-		parseInput(input.substring(0, input.length() - 1));
+		String output = parseInput(input.substring(0, input.length() - 1));
+
+		System.out.println(output);
 	}
 
-	public static void parseInput(String input) throws Exception {
+	public static String parseInput(String input) throws Exception {
 		Pattern inputPattern = Pattern.compile(_INPUT_REGEX);
 
 		Matcher inputMatcher = inputPattern.matcher(input);
@@ -41,9 +43,9 @@ public class Converter {
 				throw new Exception("Invalid input.");
 			}
 
+			toUnits = inputMatcher.group(1);
 			fromQuantity = inputMatcher.group(2);
 			fromUnits = inputMatcher.group(3);
-			toUnits = inputMatcher.group(1);
 		}
 
 		if (fromQuantity.equalsIgnoreCase(_A) ||
@@ -52,25 +54,33 @@ public class Converter {
 			fromQuantity = _1;
 		}
 
-		ConversionTable ct = new ConversionTable();
+		if (_ct == null) {
+			_ct = new ConversionTable();
+		}
 
 		if (Pattern.matches(_CURRENCY_REGEX, fromUnits) &&
-			Pattern.matches(_CURRENCY_REGEX, toUnits)) {
+			Pattern.matches(_CURRENCY_REGEX, toUnits) &&
+			!_ct.hasRate(fromUnits, toUnits)) {
 
-			CurrencyConverter cc = new CurrencyConverter();
+			if (_cc == null) {
+				_cc = new CurrencyConverter();
+			}
 
-			double conversionRate = cc.getCurrencyRate(fromUnits, toUnits);
+			double conversionRate = _cc.getCurrencyRate(fromUnits, toUnits);
 
-			ct.addRate(fromUnits, toUnits, conversionRate);
+			_ct.addRate(fromUnits, toUnits, conversionRate);
 		}
 
 		Value<Double> from = new Value<Double>(
 			Double.valueOf(fromQuantity), fromUnits);
 
-		Value<Double> result = ct.convert(from, toUnits);
+		Value<Double> result = _ct.convert(from, toUnits);
 
-		System.out.println(result);
+		return from.toString() + _SEPARATOR + result.toString();
 	}
+
+	private static CurrencyConverter _cc;
+	private static ConversionTable _ct;
 
 	private static final String _1 = "1";
 	private static final String _A = "a";
@@ -80,6 +90,7 @@ public class Converter {
 	private static final String _CURRENCY_REGEX = "[a-z]{3}|[A-Z]{3}";
 	private static final String _INPUT_REGEX =
 		".*?([\\.0-9]+|a )\\s?([a-zA-Z]+) .+ ([a-zA-Z]+)\\W?";
+	private static final String _SEPARATOR = " = ";
 	private static final String _SPACE = " ";
 
 }

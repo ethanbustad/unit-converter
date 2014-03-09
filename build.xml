@@ -9,6 +9,7 @@
 
 	<property name="currency-class" value="com.ethanbustad.converter.CurrencyConverter" />
 	<property name="converter-class" value="com.ethanbustad.converter.Converter" />
+	<property name="gui-class" value="com.ethanbustad.converter.ConverterGUI" />
 	<property name="table-class" value="com.ethanbustad.converter.ConversionTable" />
 	<property name="value-class" value="com.ethanbustad.converter.Value" />
 
@@ -34,7 +35,7 @@
 		<mkdir dir="${jar.dir}" />
 		<jar destfile="${jar.dir}/${ant.project.name}.jar" basedir="${classes.dir}">
 			<manifest>
-				<attribute name="Converter-Class" value="${converter-class}" />
+				<attribute name="Main-Class" value="${gui-class}" />
 			</manifest>
 		</jar>
 	</target>
@@ -42,7 +43,7 @@
 	<path id="application" location="${jar.dir}/${ant.project.name}.jar" />
 
 	<target name="run" depends="jar">
-		<java fork="true" classname="${converter-class}">
+		<java fork="true" classname="${gui-class}">
 			<classpath>
 				<path refid="classpath" />
 				<path refid="application" />
