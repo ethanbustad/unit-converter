@@ -1,3 +1,5 @@
+package com.ethanbustad.converter;
+
 public class Value<T> {
 
 	public static void main(String[] args) {
