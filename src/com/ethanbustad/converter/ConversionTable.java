@@ -4,9 +4,12 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 public class ConversionTable {
@@ -121,6 +124,16 @@ public class ConversionTable {
 		return null;
 	}
 
+	private boolean _containsLikeElement(Set<String> set, String like) {
+		for (String element : set) {
+			if (element.contains(like)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	private BigDecimal _convert(Number value, Number rate) {
 		BigDecimal bdValue = new BigDecimal(value.toString());
 		BigDecimal bdRate = new BigDecimal(rate.toString());
@@ -131,7 +144,7 @@ public class ConversionTable {
 	private BigDecimal _deriveConversionRate(String from, String to)
 		throws Exception {
 
-		List<String> connectionPath = _getConnectionPath(from, to);
+		Set<String> connectionPath = _getConnectionPath(from, to, null);
 
 		if (connectionPath == null) {
 			return null;
@@ -160,21 +173,51 @@ public class ConversionTable {
 		return conversionRate;
 	}
 
-	private List<String> _getConnectionPath(String from, String to) {
-		List<String> path = new ArrayList<String>();
+	private Set<String> _getConnectionPath(
+		String from, String to, String exclude) {
+
+		String possibleKey = _getKey(from, to);
+
+		if (_table.containsKey(possibleKey)) {
+			Set<String> path = new LinkedHashSet<String>();
+
+			path.add(possibleKey);
+
+			return path;
+		}
 
 		String keyOption1 = from.concat(_keySeparator);
 		String keyOption2 = _keySeparator.concat(from);
 
 		for (String key : _table.keySet()) {
+			Set<String> path = new LinkedHashSet<String>();
+			String steppingStone = null;
+
 			if (key.startsWith(keyOption1)) {
-				//
+				steppingStone = key.replace(keyOption1, _BLANK);
 			}
 			else if (key.endsWith(keyOption2)) {
-				//
+				steppingStone = key.replace(keyOption2, _BLANK);
 			}
 			else {
-				//
+				continue;
+			}
+
+			if ((exclude != null) && steppingStone.equals(exclude)) {
+				continue;
+			}
+
+			Set<String> subpath = _getConnectionPath(steppingStone, to, from);
+
+			if (subpath.contains(null)) {
+				continue;
+			}
+
+			if (_containsLikeElement(subpath, to)) {
+				path.add(_getKey(from, steppingStone));
+				path.addAll(subpath);
+
+				return path;
 			}
 		}
 
@@ -255,6 +298,7 @@ public class ConversionTable {
 	private Map<String, String> _unitPrefixes;
 	private Map<String, String> _unitSuffixes;
 
+	private static final String _BLANK = "";
 	private static final String _keySeparator = "`->`";
 	private static final String _pluralSuffix = "s";
 
