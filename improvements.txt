@@ -11,3 +11,5 @@ need to add in support for complex conversions
 		have the system spin up all possible combinations at launch... slower start, faster calls
 	algorithm can assume only one path between "from" and "to", I think
 set currency timeout to very short, so you don't have to sit there forever if your internet is down
+
+before regexing input, check for things like "fluid [a-z]" or "cubic [a-z]"
