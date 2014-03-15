@@ -4,9 +4,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -124,16 +122,6 @@ public class ConversionTable {
 		return null;
 	}
 
-	private boolean _containsLikeElement(Set<String> set, String like) {
-		for (String element : set) {
-			if (element.contains(like)) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
 	private BigDecimal _convert(Number value, Number rate) {
 		BigDecimal bdValue = new BigDecimal(value.toString());
 		BigDecimal bdRate = new BigDecimal(rate.toString());
@@ -144,28 +132,18 @@ public class ConversionTable {
 	private BigDecimal _deriveConversionRate(String from, String to)
 		throws Exception {
 
-		Set<String> connectionPath = _getConnectionPath(from, to, null);
+		List<Number> connectionPath = _getConnectionPath(from, to, null);
 
 		if (connectionPath == null) {
 			return null;
 		}
 
+		connectionPath.remove(_MARKER);
+
 		BigDecimal conversionRate = BigDecimal.ONE;
 
-		for (String connection : connectionPath) {
-			Number connectionRate = _table.get(connection);
-
-			if (connectionRate == null) {
-				String[] connectionElements = connection.split(_keySeparator);
-
-				String reverseKey = _getKey(
-					connectionElements[1], connectionElements[0]);
-
-				connectionRate = _inverse(_table.get(reverseKey));
-			}
-
-			BigDecimal bdConnectionRate = new BigDecimal(
-				connectionRate.toString());
+		for (Number connection : connectionPath) {
+			BigDecimal bdConnectionRate = new BigDecimal(connection.toString());
 
 			conversionRate = conversionRate.multiply(bdConnectionRate);
 		}
@@ -173,31 +151,48 @@ public class ConversionTable {
 		return conversionRate;
 	}
 
-	private Set<String> _getConnectionPath(
+	private List<Number> _getConnectionPath(
 		String from, String to, String exclude) {
 
-		String possibleKey = _getKey(from, to);
+		String keyGuess1 = _getKey(from, to);
+		String keyGuess2 = _getKey(to, from);
 
-		if (_table.containsKey(possibleKey)) {
-			Set<String> path = new LinkedHashSet<String>();
+		if (_table.containsKey(keyGuess1)) {
+			List<Number> path = new ArrayList<Number>();
 
-			path.add(possibleKey);
+			path.add(_table.get(keyGuess1));
+			path.add(_MARKER);
+
+			return path;
+		}
+		else if (_table.containsKey(keyGuess2)) {
+			List<Number> path = new ArrayList<Number>();
+
+			path.add(_inverse(_table.get(keyGuess2)));
+			path.add(_MARKER);
 
 			return path;
 		}
 
-		String keyOption1 = from.concat(_keySeparator);
-		String keyOption2 = _keySeparator.concat(from);
+		// check for prefixes
+
+		String keyOption1 = from.concat(_KEY_SEPARATOR);
+		String keyOption2 = _KEY_SEPARATOR.concat(from);
 
 		for (String key : _table.keySet()) {
-			Set<String> path = new LinkedHashSet<String>();
+			List<Number> path = new ArrayList<Number>();
 			String steppingStone = null;
+			Number value = 0;
 
 			if (key.startsWith(keyOption1)) {
 				steppingStone = key.replace(keyOption1, _BLANK);
+
+				value = _table.get(_getKey(from, steppingStone));
 			}
 			else if (key.endsWith(keyOption2)) {
 				steppingStone = key.replace(keyOption2, _BLANK);
+
+				value = _inverse(_table.get(_getKey(steppingStone, from)));
 			}
 			else {
 				continue;
@@ -207,14 +202,14 @@ public class ConversionTable {
 				continue;
 			}
 
-			Set<String> subpath = _getConnectionPath(steppingStone, to, from);
+			List<Number> subpath = _getConnectionPath(steppingStone, to, from);
 
 			if (subpath.contains(null)) {
 				continue;
 			}
 
-			if (_containsLikeElement(subpath, to)) {
-				path.add(_getKey(from, steppingStone));
+			if (subpath.contains(_MARKER)) {
+				path.add(value);
 				path.addAll(subpath);
 
 				return path;
@@ -224,12 +219,8 @@ public class ConversionTable {
 		return null;
 	}
 
-	private String[] _getElements(String key) {
-		return key.split(_keySeparator);
-	}
-
 	private String _getKey(String from, String to) {
-		return from.concat(_keySeparator).concat(to);
+		return from.concat(_KEY_SEPARATOR).concat(to);
 	}
 
 	private BigDecimal _inverse(Number num) {
@@ -274,9 +265,9 @@ public class ConversionTable {
 			return expandedUnit;
 		}
 
-		if (unit.endsWith(_pluralSuffix)) {
+		if (unit.endsWith(_PLURAL_SUFFIX)) {
 			String singularUnit = unit.substring(
-				0, unit.length() - _pluralSuffix.length());
+				0, unit.length() - _PLURAL_SUFFIX.length());
 
 			return _standardizeUnits(singularUnit);
 		}
@@ -299,8 +290,9 @@ public class ConversionTable {
 	private Map<String, String> _unitSuffixes;
 
 	private static final String _BLANK = "";
-	private static final String _keySeparator = "`->`";
-	private static final String _pluralSuffix = "s";
+	private static final Number _MARKER = Double.NaN;
+	private static final String _KEY_SEPARATOR = "`->`";
+	private static final String _PLURAL_SUFFIX = "s";
 
 	private static final String[][] _defaultRates = {
 		{"cup", "fluid ounce", "8"},
