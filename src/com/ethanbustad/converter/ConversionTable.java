@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ConversionTable {
@@ -33,6 +34,7 @@ public class ConversionTable {
 
 	public ConversionTable() {
 		_addedUnits = new ArrayList<String>();
+		_rateRegexes = new HashMap<String, Number>();
 		_table = new HashMap<String, Number>();
 		_units = new HashMap<String, String>();
 		_unitPrefixes = new HashMap<String, String>();
@@ -154,33 +156,70 @@ public class ConversionTable {
 	private List<Number> _getConnectionPath(
 		String from, String to, String exclude) {
 
+		List<Number> path = new ArrayList<Number>();
+
+		if (from.equals(to)) {
+			path.add(1);
+			path.add(_MARKER);
+
+			return path;
+		}
+
 		String keyGuess1 = _getKey(from, to);
 		String keyGuess2 = _getKey(to, from);
 
 		if (_table.containsKey(keyGuess1)) {
-			List<Number> path = new ArrayList<Number>();
-
 			path.add(_table.get(keyGuess1));
 			path.add(_MARKER);
 
 			return path;
 		}
 		else if (_table.containsKey(keyGuess2)) {
-			List<Number> path = new ArrayList<Number>();
-
 			path.add(_inverse(_table.get(keyGuess2)));
 			path.add(_MARKER);
 
 			return path;
 		}
 
-		// check for prefixes
+		for (String regexKey : _rateRegexes.keySet()) {
+			Pattern pattern = Pattern.compile(regexKey);
+
+			Matcher matcher = pattern.matcher(from);
+
+			if (matcher.matches() && _table.containsKey(matcher.group(1))) {
+				path.add(_rateRegexes.get(regexKey));
+				path.addAll(_getConnectionPath(matcher.group(1), to, from));
+
+				return path;
+			}
+		}
+
+		if (_unitSuffixes.values().contains(from)) {
+			for (String regexKey : _rateRegexes.keySet()) {
+				String steppingStone =
+					regexKey.replace(_REGEX_PORTION, _BLANK) + from;
+
+				List<Number> subpath = _getConnectionPath(
+					steppingStone, to, from);
+
+				if ((subpath == null) || subpath.contains(null)) {
+					continue;
+				}
+
+				if (subpath.contains(_MARKER)) {
+					path.add(_rateRegexes.get(regexKey));
+					path.addAll(subpath);
+
+					return path;
+				}
+			}
+		}
 
 		String keyOption1 = from.concat(_KEY_SEPARATOR);
 		String keyOption2 = _KEY_SEPARATOR.concat(from);
 
 		for (String key : _table.keySet()) {
-			List<Number> path = new ArrayList<Number>();
+			path = new ArrayList<Number>();
 			String steppingStone = null;
 			Number value = 0;
 
@@ -204,7 +243,7 @@ public class ConversionTable {
 
 			List<Number> subpath = _getConnectionPath(steppingStone, to, from);
 
-			if (subpath.contains(null)) {
+			if ((subpath == null) || subpath.contains(null)) {
 				continue;
 			}
 
@@ -234,6 +273,10 @@ public class ConversionTable {
 
 			_table.put(key, Double.valueOf(defaultRate[2]));
 		}
+
+		for (String[] rateRegex : _defaultRateRegexes) {
+			_rateRegexes.put(rateRegex[0], Double.valueOf(rateRegex[1]));
+		}
 // find a better way to set these defaults
 		for (String[] unitPair : _defaultUnits) {
 			_units.put(unitPair[0], unitPair[1]);
@@ -258,7 +301,7 @@ public class ConversionTable {
 		if (_units.containsKey(lcUnit)) {
 			return _units.get(lcUnit);
 		}
-// need to check for things like "centimeters"....
+
 		String expandedUnit = _checkStandardFormat(unit);
 
 		if (expandedUnit != null) {
@@ -272,18 +315,15 @@ public class ConversionTable {
 			return _standardizeUnits(singularUnit);
 		}
 
-		if (_addedUnits.contains(unit)) {
-			return unit;
-		}
-
 		if (_addedUnits.contains(lcUnit)) {
 			return lcUnit;
 		}
 
-		throw new Exception("The units " + unit + " are nonstandard.");
+		return unit;
 	}
 
 	private List<String> _addedUnits;
+	private Map<String, Number> _rateRegexes;
 	private Map<String, Number> _table;
 	private Map<String, String> _units;
 	private Map<String, String> _unitPrefixes;
@@ -293,6 +333,7 @@ public class ConversionTable {
 	private static final Number _MARKER = Double.NaN;
 	private static final String _KEY_SEPARATOR = "`->`";
 	private static final String _PLURAL_SUFFIX = "s";
+	private static final String _REGEX_PORTION = "(.+)";
 
 	private static final String[][] _defaultRates = {
 		{"cup", "fluid ounce", "8"},
@@ -300,16 +341,16 @@ public class ConversionTable {
 		{"foot", "inch", "12"},
 		{"gallon", "fluid ounce", "128"},
 		{"hour", "minute", "60"},
-		{"inch", "centimeter", "2.54"},
+		{"inch", "meter", "0.0254"},
 		{"liter", "gallon", "0.2642"},
 		{"mile", "foot", "5280"},
 		{"minute", "second", "60"},
 		{"pint", "cup", "2"},
-		{"pound", "kilogram", "0.45359237"},
+		{"pound", "gram", "453.59237"},
 		{"pound", "ounce", "16"},
 		{"quart", "cup", "4"},
 		{"ton", "pound", "2000"},
-		{"tonne", "kilogram", "1000"},
+		{"tonne", "gram", "1000000"},
 		{"week", "day", "7"},
 		{"yard", "foot", "3"},
 		{"year", "day", "365.24"},
@@ -317,20 +358,20 @@ public class ConversionTable {
 	};
 
 	private static final String[][] _defaultRateRegexes = {
-		{".+", "centi.+", "100"},
-		{".+", "deca.+", "0.1"},
-		{".+", "deci.+", "10"},
-		{".+", "femto.+", "1000000000000000"},
-		{".+", "giga.+", "0.000000001"},
-		{".+", "hecto.+", "0.01"},
-		{".+", "kilo.+", "0.001"},
-		{".+", "mega.+", "0.000001"},
-		{".+", "micro.+", "1000000"},
-		{".+", "milli.+", "1000"},
-		{".+", "nano.+", "1000000000"},
-		{".+", "peta.+", "0.000000000000001"},
-		{".+", "pico.+", "1000000000000"},
-		{".+", "tera.+", "0.000000000001"}
+		{"centi(.+)", "100"},
+		{"deca(.+)", "0.1"},
+		{"deci(.+)", "10"},
+		{"femto(.+)", "1000000000000000"},
+		{"giga(.+)", "0.000000001"},
+		{"hecto(.+)", "0.01"},
+		{"kilo(.+)", "0.001"},
+		{"mega(.+)", "0.000001"},
+		{"micro(.+)", "1000000"},
+		{"milli(.+)", "1000"},
+		{"nano(.+)", "1000000000"},
+		{"peta(.+)", "0.000000000000001"},
+		{"pico(.+)", "1000000000000"},
+		{"tera(.+)", "0.000000000001"}
 	};
 
 	private static final String[][] _defaultUnitPrefixRegexes = {
