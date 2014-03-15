@@ -27,3 +27,8 @@ Lightweight unit converter, meant to support all common conversions.
 
 - hours, minutes, seconds (incl. fractions of seconds)
 - years, months, weeks, days (uses average month length)
+  
+  
+Run converter.bat to load the program.  
+
+Run java -cp .;build/classes;**/*.class com.ethanbustad.converter.ConverterGUI from the main repo folder to run the program in an existing console window.
