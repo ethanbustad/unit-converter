@@ -44,8 +44,8 @@ public class ConversionTable {
 	}
 
 	public void addRate(String from, String to, Number rate) throws Exception {
-		//from = _standardizeUnits(from);
-		//to = _standardizeUnits(to);
+		from = _standardizeUnits(from);
+		to = _standardizeUnits(to);
 
 		String key = _getKey(from, to);
 
@@ -186,8 +186,11 @@ public class ConversionTable {
 
 			Matcher matcher = pattern.matcher(from);
 
-			if (matcher.matches() && _table.containsKey(matcher.group(1))) {
-				path.add(_rateRegexes.get(regexKey));
+			if (matcher.matches() &&
+				_unitSuffixes.values().contains(matcher.group(1)) &&
+				!((exclude != null) && exclude.equals(matcher.group(1)))) {
+
+				path.add(_inverse(_rateRegexes.get(regexKey)));
 				path.addAll(_getConnectionPath(matcher.group(1), to, from));
 
 				return path;
