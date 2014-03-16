@@ -18,6 +18,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.WindowConstants;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.text.JTextComponent;
 
@@ -34,18 +35,7 @@ class ConverterGUI extends JFrame {
 		setSize(300,280);
 		setLocation(100,200);
 
-		addWindowListener(new WindowAdapter() {
-
-			@Override
-			public void windowClosing(WindowEvent we) {
-				JFrame jf = (JFrame)we.getSource();
-
-				jf.dispose();
-
-				System.exit(0);
-			}
-
-		});
+		setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 
 		_addPanel();
 	}
